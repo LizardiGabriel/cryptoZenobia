@@ -1,7 +1,6 @@
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 import os
-import sqlite3
 
 # Generar un par de claves RSA de 2048 bits
 private_key = rsa.generate_private_key(
@@ -21,32 +20,20 @@ public_pem = public_key.public_bytes(
     format=serialization.PublicFormat.SubjectPublicKeyInfo
 )
 
+# Definir la carpeta para guardar las claves
+keys_folder = "keys"
+os.makedirs(keys_folder, exist_ok=True)
+
 # Guardar la clave privada en un archivo
-private_key_file = "private_key.pem"
+private_key_file = os.path.join(keys_folder, "private_key.pem")
 with open(private_key_file, "wb") as f:
     f.write(private_pem)
 
 print(f"Clave privada guardada en: {private_key_file}")
 
-# Guardar la clave pública en la base de datos
-def store_public_key(public_pem):
-    conn = sqlite3.connect('condominio.db')
-    c = conn.cursor()
+# Guardar la clave pública en un archivo
+public_key_file = os.path.join(keys_folder, "public_key.pem")
+with open(public_key_file, "wb") as f:
+    f.write(public_pem)
 
-    # Crear la tabla para almacenar la clave pública si no existe
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS public_key (
-            id INTEGER PRIMARY KEY,
-            key TEXT NOT NULL
-        )
-    ''')
-
-    # Insertar la clave pública
-    c.execute('DELETE FROM public_key')  # Eliminar cualquier clave pública existente
-    c.execute('INSERT INTO public_key (key) VALUES (?)', (public_pem.decode('utf-8'),))
-
-    conn.commit()
-    conn.close()
-
-store_public_key(public_pem)
-print("Clave pública guardada en la base de datos.")
+print(f"Clave pública guardada en: {public_key_file}")

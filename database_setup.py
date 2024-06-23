@@ -1,11 +1,6 @@
 import os
 import sqlite3
-from crypto_utils import generar_clave_aes, cifrar_datos, descifrar_datos
-
-# Mantén la clave maestra en memoria segura (nunca la almacenes en texto plano)
-clave_maestra = "clave_secreta"
-salt = os.urandom(16)
-clave_aes = generar_clave_aes(clave_maestra, salt)
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Obtener conexión a la base de datos SQLite
 def get_db_connection():
@@ -17,6 +12,15 @@ def get_db_connection():
 def create_database():
     conn = get_db_connection()
     c = conn.cursor()
+
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS admin (
+            id INTEGER PRIMARY KEY,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL
+        )
+    ''')
 
     c.execute('''
         CREATE TABLE IF NOT EXISTS inquilinos (
@@ -48,13 +52,36 @@ def create_database():
         CREATE TABLE IF NOT EXISTS documentos_firmados (
             id INTEGER PRIMARY KEY,
             nombre TEXT NOT NULL,
-            documento BLOB NOT NULL,
+            url TEXT NOT NULL,
             firma BLOB NOT NULL
         )
     ''')
 
     conn.commit()
     conn.close()
+
+def registrar_admin(username, password):
+    conn = get_db_connection()
+    c = conn.cursor()
+    password_hash = generate_password_hash(password)
+    try:
+        c.execute('INSERT INTO admin (username, password_hash) VALUES (?, ?)', (username, password_hash))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+    return True
+
+def verificar_admin(username, password):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute('SELECT password_hash FROM admin WHERE username = ?', (username,))
+    user = c.fetchone()
+    conn.close()
+    if user and check_password_hash(user['password_hash'], password):
+        return True
+    return False
 
 # Agregar un inquilino a la base de datos
 def agregar_inquilino(nombre_completo: str):
@@ -77,8 +104,6 @@ def eliminar_inquilino(inquilino_id: int):
 def registrar_pago_mantenimiento(inquilino_id: int, mes: str, monto: float):
     conn = get_db_connection()
     c = conn.cursor()
-    datos = f"{inquilino_id} - {mes} - {monto}".encode()
-    datos_cifrados = cifrar_datos(datos, clave_aes)
     c.execute('''
         INSERT INTO pagos_mantenimiento (inquilino_id, mes, monto) 
         VALUES (?, ?, ?)
@@ -90,8 +115,6 @@ def registrar_pago_mantenimiento(inquilino_id: int, mes: str, monto: float):
 def registrar_pago_proveedor(proveedor: str, fecha: str, monto: float):
     conn = get_db_connection()
     c = conn.cursor()
-    datos = f"{proveedor} - {fecha} - {monto}".encode()
-    datos_cifrados = cifrar_datos(datos, clave_aes)
     c.execute('''
         INSERT INTO pagos_proveedores (proveedor, fecha, monto) 
         VALUES (?, ?, ?)
@@ -99,7 +122,7 @@ def registrar_pago_proveedor(proveedor: str, fecha: str, monto: float):
     conn.commit()
     conn.close()
 
-# Obtener y descifrar la lista de inquilinos
+# Obtener la lista de inquilinos
 def obtener_inquilinos():
     conn = get_db_connection()
     c = conn.cursor()
@@ -108,7 +131,7 @@ def obtener_inquilinos():
     conn.close()
     return inquilinos
 
-# Obtener y descifrar la lista de pagos de mantenimiento
+# Obtener la lista de pagos de mantenimiento
 def obtener_pagos_mantenimiento():
     conn = get_db_connection()
     c = conn.cursor()
@@ -117,7 +140,7 @@ def obtener_pagos_mantenimiento():
     conn.close()
     return pagos
 
-# Obtener y descifrar la lista de pagos a proveedores
+# Obtener la lista de pagos a proveedores
 def obtener_pagos_proveedores():
     conn = get_db_connection()
     c = conn.cursor()
@@ -143,3 +166,14 @@ def obtener_monto_pago_actual(inquilino_id: int, mes: str):
     pago = c.fetchone()
     conn.close()
     return pago['monto'] if pago else None
+
+# Guardar la URL del documento firmado en la base de datos
+def guardar_documento_firmado(nombre, url, firma):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO documentos_firmados (nombre, url, firma) 
+        VALUES (?, ?, ?)
+    ''', (nombre, url, firma))
+    conn.commit()
+    conn.close()

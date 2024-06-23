@@ -15,21 +15,27 @@ def generar_clave_aes(password: str, salt: bytes) -> bytes:
     )
     return kdf.derive(password.encode())
 
-# Cifrar datos usando AES
+# Cifrar datos usando AES en modo CBC
 def cifrar_datos(datos: bytes, clave: bytes) -> bytes:
     iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES(clave), modes.CFB(iv))
+    cipher = Cipher(algorithms.AES(clave), modes.CBC(iv))
     encryptor = cipher.encryptor()
+    # Los datos deben ser un múltiplo del tamaño del bloque (16 bytes para AES)
+    padding_length = 16 - len(datos) % 16
+    datos += bytes([padding_length]) * padding_length
     datos_cifrados = encryptor.update(datos) + encryptor.finalize()
     return iv + datos_cifrados
 
-# Descrifrar datos usando AES
+# Descrifrar datos usando AES en modo CBC
 def descifrar_datos(datos_cifrados: bytes, clave: bytes) -> bytes:
     iv = datos_cifrados[:16]
     datos_cifrados = datos_cifrados[16:]
-    cipher = Cipher(algorithms.AES(clave), modes.CFB(iv))
+    cipher = Cipher(algorithms.AES(clave), modes.CBC(iv))
     decryptor = cipher.decryptor()
-    return decryptor.update(datos_cifrados) + decryptor.finalize()
+    datos = decryptor.update(datos_cifrados) + decryptor.finalize()
+    # Quitar el padding
+    padding_length = datos[-1]
+    return datos[:-padding_length]
 
 # Generar claves Diffie-Hellman
 def generar_claves_diffie_hellman():
