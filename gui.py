@@ -33,8 +33,17 @@ class CondominioApp:
         btn_gen_certificado = tk.Button(menu_frame, text="Generar Certificado de Estado", command=self.gen_certificado)
         btn_gen_certificado.pack(fill=tk.X, pady=5)
 
+        btn_gen_keys = tk.Button(menu_frame, text="Generar Claves RSA", command=self.generate_rsa_keys)
+        btn_gen_keys.pack(fill=tk.X, pady=5)
+
         btn_sign_doc = tk.Button(menu_frame, text="Firmar Documento", command=self.sign_document)
         btn_sign_doc.pack(fill=tk.X, pady=5)
+
+        btn_gen_dh_keys = tk.Button(menu_frame, text="Generar Claves DH", command=self.generate_dh_keys)
+        btn_gen_dh_keys.pack(fill=tk.X, pady=5)
+
+        btn_gen_secret_key = tk.Button(menu_frame, text="Generar Clave Secreta", command=self.generate_secret_key)
+        btn_gen_secret_key.pack(fill=tk.X, pady=5)
 
     def show_inquilinos(self):
         # Ventana para mostrar y gestionar inquilinos
@@ -289,6 +298,14 @@ class CondominioApp:
         btn_generate = tk.Button(win_gen_certificado, text="Generar", command=generate_certificado)
         btn_generate.pack(pady=10)
 
+    def generate_rsa_keys(self):
+        from generate_keys import generate_keys
+        try:
+            generate_keys()
+            messagebox.showinfo("Éxito", "Las claves RSA se han generado y almacenado correctamente.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al generar las claves RSA: {e}")
+
     def sign_document(self):
         # Función para cargar clave privada y firmar documento
         private_key_path = filedialog.askopenfilename(title="Seleccionar clave privada", filetypes=(("PEM files", "*.pem"), ("All files", "*.*")))
@@ -328,3 +345,18 @@ class CondominioApp:
         proveedores = obtener_pagos_proveedores()
         for proveedor in proveedores:
             self.proveedores_list.insert('', 'end', values=(proveedor['id'], proveedor['proveedor'], proveedor['fecha'], proveedor['monto']))
+    
+    def generate_dh_keys(self):
+        from generate_keys_dh import create_dh_keys
+        try:
+            create_dh_keys()
+            messagebox.showinfo("Éxito", "Las claves DH se han generado y almacenado correctamente.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al generar las claves DH: {e}")
+
+    def generate_secret_key(self):
+        from secret_key import create_secret_key
+        try:
+            create_secret_key()
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al generar la clave secreta: {e}")
